@@ -1,0 +1,171 @@
+Description: >
+    Tony Hendrick / Udacity 2020
+    IaC Final Project CloudFormation Template
+Parameters:
+# whatever you consider a changing value, put it as a parameter instead of hard-coding it into your script
+    EnvironmentName:
+        Description: Single Parameter that we are passing with the env name.
+        Type: String
+
+    EC2InstanceType:
+        Description: EC2 Instance Type for Launch Configuration
+        Type: String
+        Default: t2.micro
+
+    EC2KeyName:
+      Description: The key name to connect to the EC2 instances
+      Type: String
+
+    EC2ami:
+      Description: The ami id for the instances
+      Type: String
+      Default: ami-003634241a8fcdec0
+
+Resources:
+  #IAM Role for EC2 to S3 read only
+  UdacityS3ReadOnlyEC2:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: UdacityS3ReadOnlyEC2
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 's3:GetObject'
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} IAM Role S3 Access
+
+  #instace profile contains the IAM Role name(s) that we want to associate to our auto scaling EC2 Servers
+  AppIamInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      Roles:
+        - !Ref UdacityS3ReadOnlyEC2
+
+  #s3 bucket
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    # DeletionPolicy: Retain
+    Properties:
+      BucketName: udacityfinaliac-6520
+      AccessControl: Private
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} S3 Bucket
+
+  #security group for auto scaling group
+  SecurityGroupHTTP:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: Allow ingress HTTP
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Egress allow HTTP
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      SecurityGroupIngress: 
+        - CidrIp: 0.0.0.0/0
+          Description: Ingress allow HTTP
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      Tags: 
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Security Group HTTP
+      VpcId: 
+        Fn::ImportValue:
+          !Sub "${EnvironmentName}-VPCID"
+
+
+  #load balancer
+  AppLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties: 
+      IpAddressType: ipv4
+      Name: !Sub ${EnvironmentName}-LB
+      Scheme: internal
+      SecurityGroups:
+        - !Ref SecurityGroupHTTP
+      # SubnetMappings:
+      #   - Fn::ImportValue:
+      #       !Sub "${EnvironmentName}-PUB-NETS"
+      Subnets:
+        - Fn::ImportValue: !Sub "${EnvironmentName}-PRIV1-SN"
+        - Fn::ImportValue: !Sub "${EnvironmentName}-PRIV2-SN"
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-LB
+      Type: application
+
+  #launch template for auto scaling group
+  AppLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        InstanceType: !Ref EC2InstanceType
+        KeyName: !Ref EC2KeyName
+        ImageId: !Ref EC2ami
+        IamInstanceProfile:
+          Arn:
+            Fn::GetAtt:
+            - AppIamInstanceProfile
+            - Arn
+        SecurityGroupIds:
+        - !Ref SecurityGroupHTTP
+        UserData:
+          Fn::Base64:
+            '#!/bin/bash
+            apt-get update -y
+            apt-get install unzip awscli -y
+            apt-get install apache2 -y
+            systemctl start apache2.service
+            cd /var/www/html
+            aws s3 cp s3://udacity-demo-1/udacity.zip .
+            unzip -o udacity.zip'
+      #LaunchTemplateName: UdacityLaunchTemplate
+
+  # Auto scaling group
+  ASG: 
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties: 
+      AvailabilityZones: 
+        Fn::GetAZs:
+          Ref: "AWS::Region"
+      LaunchTemplate: !Ref AppLaunchTemplate
+      MinSize: "1"
+      MaxSize: "1"
+      LoadBalancerNames:
+        - !Ref AppLoadBalancer
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: "true"
+          Value: !Sub ${EnvironmentName} Auto Scaling Group
+
+
+#Bonus points for useful outputs!
+# Outputs:
+
+
+
+          # #!/bin/bash
+          # apt-get update -y
+          # apt-get install unzip awscli -y
+          # apt-get install apache2 -y
+          # systemctl start apache2.service
+          # cd /var/www/html
+          # aws s3 cp s3://udacity-demo-1/udacity.zip .
+          # unzip -o udacity.zip

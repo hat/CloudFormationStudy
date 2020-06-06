@@ -1,0 +1,18 @@
+[
+	{
+		"ParameterKey": "EnvironmentName",
+		"ParameterValue": "UdacityFinalAiC"
+    },
+    {
+        "ParameterKey": "EC2InstanceType",
+        "ParameterValue": "t2.micro" 
+    },
+    {
+        "ParameterKey": "EC2KeyName",
+        "ParameterValue": "UdacityIaCFinal"
+    },
+    {
+        "ParameterKey": "EC2ami",
+        "ParameterValue": "ami-003634241a8fcdec0"
+    }
+]
