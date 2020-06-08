@@ -10,7 +10,7 @@ Parameters:
     EC2InstanceType:
         Description: EC2 Instance Type for Launch Configuration
         Type: String
-        Default: t2.micro
+        Default: t2.micro #t2.medium for prod
 
     EC2KeyName:
       Description: The key name to connect to the EC2 instances
@@ -104,21 +104,42 @@ Resources:
       #   - Fn::ImportValue:
       #       !Sub "${EnvironmentName}-PUB-NETS"
       Subnets:
-        - Fn::ImportValue: !Sub "${EnvironmentName}-PRIV1-SN"
-        - Fn::ImportValue: !Sub "${EnvironmentName}-PRIV2-SN"
+        - Fn::ImportValue: !Sub "${EnvironmentName}-PUB1-SN"
+        - Fn::ImportValue: !Sub "${EnvironmentName}-PUB2-SN"
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName}-LB
       Type: application
 
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled: true
+      HealthCheckPath: /
+      HealthCheckPort: 80
+      HealthCheckProtocol: HTTP
+      Port: 80
+      Protocol: HTTP
+
+      Name: !Sub ${EnvironmentName}-TG
+      TargetType: instance
+      VpcId:
+        Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
+
   #launch template for auto scaling group
   AppLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
+      LaunchTemplateName: !Sub ${EnvironmentName}-launch-template
       LaunchTemplateData:
         InstanceType: !Ref EC2InstanceType
         KeyName: !Ref EC2KeyName
         ImageId: !Ref EC2ami
+        BlockDeviceMappings:
+          - Ebs:
+              VolumeSize: 10
+            DeviceName: /dev/sdf
         IamInstanceProfile:
           Arn:
             Fn::GetAtt:
@@ -136,20 +157,19 @@ Resources:
             cd /var/www/html
             aws s3 cp s3://udacity-demo-1/udacity.zip .
             unzip -o udacity.zip'
-      #LaunchTemplateName: UdacityLaunchTemplate
 
   # Auto scaling group
   ASG: 
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties: 
-      AvailabilityZones: 
-        Fn::GetAZs:
-          Ref: "AWS::Region"
-      LaunchTemplate: !Ref AppLaunchTemplate
+      LaunchTemplate: 
+        LaunchTemplateId: !Ref AppLaunchTemplate
+        Version: !GetAtt AppLaunchTemplate.LatestVersionNumber
       MinSize: "1"
       MaxSize: "1"
-      LoadBalancerNames:
-        - !Ref AppLoadBalancer
+      TargetGroupARNs: !GetAtt TargetGroup.LoadBalancerArns
+      VPCZoneIdentifier: 
+        - Fn::ImportValue: !Sub "${EnvironmentName}-PRIV-NETS"
       Tags:
         - Key: Name
           PropagateAtLaunch: "true"
