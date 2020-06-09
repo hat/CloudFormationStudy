@@ -94,6 +94,21 @@ Resources:
                 - Key: Name
                   Value: !Sub ${EnvironmentName} Private Subnet 2
 
+    # internet gateway
+    InternetGateway:
+        Type: AWS::EC2::InternetGateway
+        Properties:
+          Tags:
+          - Key: Name
+            Value: !Sub ${EnvironmentName} Internet Gateway
+
+    # internet gateway attachment to VPC
+    AttachGateway:
+        Type: AWS::EC2::VPCGatewayAttachment
+        Properties:
+          VpcId: !Ref VPC
+          InternetGatewayId: !Ref InternetGateway
+
 Outputs:
     VPC: 
         Description: A reference to the created VPC
@@ -137,4 +152,8 @@ Outputs:
         Export:
             Name: !Sub ${EnvironmentName}-PRIV2-SN
 
-
+    InternetGateway:
+        Description: A reference to the internet gateway
+        Value: !Ref InternetGateway
+        Export:
+            Name: !Sub ${EnvironmentName}-IG
