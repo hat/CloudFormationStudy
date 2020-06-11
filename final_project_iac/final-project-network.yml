@@ -105,9 +105,28 @@ Resources:
     # internet gateway attachment to VPC
     AttachGateway:
         Type: AWS::EC2::VPCGatewayAttachment
+        DependsOn: InternetGateway
         Properties:
           VpcId: !Ref VPC
           InternetGatewayId: !Ref InternetGateway
+
+    # route table
+    RouteTable:
+        Type: AWS::EC2::RouteTable
+        Properties:
+          VpcId: !Ref VPC
+          Tags:
+          - Key: Name
+            Value: !Sub ${EnvironmentName} Route Table
+
+    #route
+    Route:
+        Type: AWS::EC2::Route
+        DependsOn: AttachGateway
+        Properties:
+           RouteTableId: !Ref RouteTable
+           DestinationCidrBlock: 0.0.0.0/0
+           GatewayId: !Ref InternetGateway
 
 Outputs:
     VPC: 
