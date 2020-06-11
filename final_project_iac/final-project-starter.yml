@@ -56,20 +56,20 @@ Resources:
         - !Ref UdacityS3ReadOnlyEC2
 
   #s3 bucket
-  S3Bucket:
-    Type: AWS::S3::Bucket
-    # DeletionPolicy: Retain
-    Properties:
-      BucketName: udacityfinaliac-6520
-      AccessControl: Private
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName} S3 Bucket
+  # S3Bucket:
+  #   Type: AWS::S3::Bucket
+  #   # DeletionPolicy: Retain
+  #   Properties:
+  #     BucketName: udacityfinaliac-6520
+  #     AccessControl: Private
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub ${EnvironmentName} S3 Bucket
 
   #security group for auto scaling group
   SecurityGroupHTTP:
     Type: AWS::EC2::SecurityGroup
-    Properties: 
+    Properties:
       GroupDescription: Allow ingress HTTP
       SecurityGroupEgress:
         - CidrIp: 0.0.0.0/0
@@ -77,12 +77,28 @@ Resources:
           FromPort: 80
           IpProtocol: tcp
           ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          Description: Egress allow HTTPS
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
       SecurityGroupIngress: 
         - CidrIp: 0.0.0.0/0
           Description: Ingress allow HTTP
           FromPort: 80
           IpProtocol: tcp
           ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          Description: Ingress allow HTTPS
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+        #REMOVE BELOW for testing only
+        - CidrIp: 0.0.0.0/0
+          Description: Ingress allow SSH
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
       Tags: 
         - Key: Name
           Value: !Sub ${EnvironmentName} Security Group HTTP
@@ -97,7 +113,7 @@ Resources:
     Properties: 
       IpAddressType: ipv4
       Name: !Sub ${EnvironmentName}-LB
-      Scheme: internal
+      Scheme: internet-facing
       SecurityGroups:
         - !Ref SecurityGroupHTTP
       # SubnetMappings:
@@ -127,6 +143,18 @@ Resources:
       VpcId:
         Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
 
+  # load balancer listener
+  HTTPlistener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    DependsOn: TargetGroup
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref AppLoadBalancer
+      Port: 80
+      Protocol: "HTTP"
+
   #launch template for auto scaling group
   AppLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -148,20 +176,20 @@ Resources:
         SecurityGroupIds:
         - !Ref SecurityGroupHTTP
         UserData:
-          Fn::Base64:
-            '#!/bin/bash
-            apt-get update -y
-            apt-get install unzip awscli -y
-            apt-get install apache2 -y
-            systemctl start apache2.service
-            cd /var/www/html
-            aws s3 cp s3://udacity-demo-1/udacity.zip .
-            unzip -o udacity.zip'
+          Fn::Base64: |
+                #!/bin/bash
+                apt-get update -y
+                apt-get install unzip awscli -y
+                apt-get install apache2 -y
+                systemctl start apache2.service
+                cd /var/www/html
+                aws s3 cp s3://udacity-demo-1/udacity.zip .
+                unzip -o udacity.zip
 
   # Auto scaling group
   ASG: 
     Type: AWS::AutoScaling::AutoScalingGroup
-    Properties: 
+    Properties:
       LaunchTemplate: 
         LaunchTemplateId: !Ref AppLaunchTemplate
         Version: !GetAtt AppLaunchTemplate.LatestVersionNumber
@@ -169,7 +197,7 @@ Resources:
       MaxSize: "1"
       TargetGroupARNs: !GetAtt TargetGroup.LoadBalancerArns
       VPCZoneIdentifier: 
-        - Fn::ImportValue: !Sub "${EnvironmentName}-PRIV-NETS"
+        - Fn::ImportValue: !Sub "${EnvironmentName}-PUB-NETS"
       Tags:
         - Key: Name
           PropagateAtLaunch: "true"
