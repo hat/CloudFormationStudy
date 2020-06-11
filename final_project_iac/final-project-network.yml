@@ -139,7 +139,6 @@ Resources:
           - Key: Name
             Value: !Sub ${EnvironmentName} Route Table
 
-
     RouteDefaultPublic:
         Type: AWS::EC2::Route
         DependsOn: IGAttachment
@@ -154,7 +153,7 @@ Resources:
             RouteTableId: !Ref RouteTablePublic
             SubnetId: !Ref PublicSubnet1
 
-    RouteTableAssociationPublicSubnet1:
+    RouteTableAssociationPublicSubnet2:
         Type: AWS::EC2::SubnetRouteTableAssociation
         Properties:
             RouteTableId: !Ref RouteTablePublic
@@ -198,7 +197,7 @@ Resources:
             DestinationCidrBlock: 0.0.0.0/0
             NatGatewayId: !Ref NatGateway2
 
-    RouteTableAssociationPrivateSubnet1:
+    RouteTableAssociationPrivateSubnet2:
         Type: AWS::EC2::SubnetRouteTableAssociation
         Properties:
             RouteTableId: !Ref RouteTablePrivate2
