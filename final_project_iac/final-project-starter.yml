@@ -137,9 +137,7 @@ Resources:
       HealthCheckProtocol: HTTP
       Port: 80
       Protocol: HTTP
-
-      Name: !Sub ${EnvironmentName}-TG
-      TargetType: instance
+      # Name: !Sub ${EnvironmentName}-TG
       VpcId:
         Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
 
@@ -195,9 +193,10 @@ Resources:
         Version: !GetAtt AppLaunchTemplate.LatestVersionNumber
       MinSize: "1"
       MaxSize: "1"
-      TargetGroupARNs: !GetAtt TargetGroup.LoadBalancerArns
-      VPCZoneIdentifier: 
-        - Fn::ImportValue: !Sub "${EnvironmentName}-PUB-NETS"
+      TargetGroupARNs: #TargetGroupARNs: !GetAtt TargetGroup.LoadBalancerArns
+        - !Ref TargetGroup
+      VPCZoneIdentifier:
+        - Fn::ImportValue: !Sub "${EnvironmentName}-PRIV-NETS"
       Tags:
         - Key: Name
           PropagateAtLaunch: "true"
