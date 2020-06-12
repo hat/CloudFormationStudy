@@ -10,7 +10,7 @@ Parameters:
     EC2InstanceType:
         Description: EC2 Instance Type for Launch Configuration
         Type: String
-        Default: t2.micro #t2.medium for prod
+        Default: t2.micro
 
     EC2KeyName:
       Description: The key name to connect to the EC2 instances
@@ -70,7 +70,7 @@ Resources:
   SecurityGroupHTTP:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow ingress HTTP
+      GroupDescription: Allow engress HTTP
       SecurityGroupEgress:
         - CidrIp: 0.0.0.0/0
           Description: Egress allow HTTP
@@ -148,7 +148,6 @@ Resources:
       LaunchTemplateName: !Sub ${EnvironmentName}-launch-template
       LaunchTemplateData:
         InstanceType: !Ref EC2InstanceType
-        KeyName: !Ref EC2KeyName
         ImageId: !Ref EC2ami
         BlockDeviceMappings:
           - Ebs:
