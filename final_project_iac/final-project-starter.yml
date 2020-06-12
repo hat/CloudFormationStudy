@@ -23,7 +23,7 @@ Parameters:
 
 Resources:
   #IAM Role for EC2 to S3 read only
-  UdacityS3ReadOnlyEC2:
+  RoleS3ReadOnly:
     Type: 'AWS::IAM::Role'
     Properties:
       AssumeRolePolicyDocument:
@@ -37,7 +37,7 @@ Resources:
               - 'sts:AssumeRole'
       Path: /
       Policies:
-        - PolicyName: UdacityS3ReadOnlyEC2
+        - PolicyName: RoleS3ReadOnly
           PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -53,18 +53,7 @@ Resources:
     Type: AWS::IAM::InstanceProfile
     Properties: 
       Roles:
-        - !Ref UdacityS3ReadOnlyEC2
-
-  #s3 bucket
-  # S3Bucket:
-  #   Type: AWS::S3::Bucket
-  #   # DeletionPolicy: Retain
-  #   Properties:
-  #     BucketName: udacityfinaliac-6520
-  #     AccessControl: Private
-  #     Tags:
-  #       - Key: Name
-  #         Value: !Sub ${EnvironmentName} S3 Bucket
+        - !Ref RoleS3ReadOnly
 
   #security group for auto scaling group
   SecurityGroupHTTP:
@@ -93,12 +82,6 @@ Resources:
           FromPort: 443
           IpProtocol: tcp
           ToPort: 443
-        #REMOVE BELOW for testing only
-        - CidrIp: 0.0.0.0/0
-          Description: Ingress allow SSH
-          FromPort: 22
-          IpProtocol: tcp
-          ToPort: 22
       Tags: 
         - Key: Name
           Value: !Sub ${EnvironmentName} Security Group HTTP
@@ -116,9 +99,6 @@ Resources:
       Scheme: internet-facing
       SecurityGroups:
         - !Ref SecurityGroupHTTP
-      # SubnetMappings:
-      #   - Fn::ImportValue:
-      #       !Sub "${EnvironmentName}-PUB-NETS"
       Subnets:
         - Fn::ImportValue: !Sub "${EnvironmentName}-PUB1-SN"
         - Fn::ImportValue: !Sub "${EnvironmentName}-PUB2-SN"
@@ -137,11 +117,9 @@ Resources:
       HealthCheckProtocol: HTTP
       Port: 80
       Protocol: HTTP
-      # Name: !Sub ${EnvironmentName}-TG
       VpcId:
         Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
 
-  # load balancer listener
   HTTPlistener:
     Type: "AWS::ElasticLoadBalancingV2::Listener"
     DependsOn: TargetGroup
@@ -153,7 +131,6 @@ Resources:
       Port: 80
       Protocol: "HTTP"
 
-  #launch template for auto scaling group
   AppLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -184,7 +161,6 @@ Resources:
                 aws s3 cp s3://udacity-demo-1/udacity.zip .
                 unzip -o udacity.zip
 
-  # Auto scaling group
   ASG: 
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -193,7 +169,7 @@ Resources:
         Version: !GetAtt AppLaunchTemplate.LatestVersionNumber
       MinSize: "1"
       MaxSize: "1"
-      TargetGroupARNs: #TargetGroupARNs: !GetAtt TargetGroup.LoadBalancerArns
+      TargetGroupARNs:
         - !Ref TargetGroup
       VPCZoneIdentifier:
         - Fn::ImportValue: !Sub "${EnvironmentName}-PRIV-NETS"
@@ -203,16 +179,21 @@ Resources:
           Value: !Sub ${EnvironmentName} Auto Scaling Group
 
 
-#Bonus points for useful outputs!
-# Outputs:
+Outputs:
+  RoleS3ReadOnly:
+    Description: Role to allow read permissions to S3
+    Value: !Ref RoleS3ReadOnly
+    Export:
+      Name: !Sub ${EnvironmentName}-ROLES3RO
 
+  SecurityGroupHTTP:
+    Description: Security group to allow http and https
+    Value: !Ref SecurityGroupHTTP
+    Export:
+      Name: !Sub ${EnvironmentName}-SGHTTP
 
-
-          # #!/bin/bash
-          # apt-get update -y
-          # apt-get install unzip awscli -y
-          # apt-get install apache2 -y
-          # systemctl start apache2.service
-          # cd /var/www/html
-          # aws s3 cp s3://udacity-demo-1/udacity.zip .
-          # unzip -o udacity.zip
+  AppLoadBalancer:
+    Description: The load balancer DNS
+    Value: !Join ["", ['http://', !GetAtt AppLoadBalancer.DNSName]]
+    Export:
+      Name: !Sub ${EnvironmentName}-LBDNS
