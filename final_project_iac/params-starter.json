@@ -5,7 +5,7 @@
     },
     {
         "ParameterKey": "EC2InstanceType",
-        "ParameterValue": "t2.micro" 
+        "ParameterValue": "t3.medium" 
     },
     {
         "ParameterKey": "EC2KeyName",
@@ -17,10 +17,10 @@
     },
     {
         "ParameterKey": "ASGMin",
-        "ParameterValue": "1"
+        "ParameterValue": "4"
     },
     {
         "ParameterKey": "ASGMax",
-        "ParameterValue": "1"
+        "ParameterValue": "4"
     }
 ]
