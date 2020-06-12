@@ -14,5 +14,13 @@
     {
         "ParameterKey": "EC2ami",
         "ParameterValue": "ami-003634241a8fcdec0"
+    },
+    {
+        "ParameterKey": "ASGMin",
+        "ParameterValue": "1"
+    },
+    {
+        "ParameterKey": "ASGMax",
+        "ParameterValue": "1"
     }
 ]

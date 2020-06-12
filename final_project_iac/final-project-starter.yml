@@ -21,6 +21,17 @@ Parameters:
       Type: String
       Default: ami-003634241a8fcdec0
 
+    ASGMin:
+      Description: The auto scaling minimum size
+      Type: String
+      Default: "1"
+
+    ASGMax:
+      Description: The auto scaling maximum size
+      Type: String
+      Default: "1"
+
+
 Resources:
   #IAM Role for EC2 to S3 read only
   RoleS3ReadOnly:
@@ -167,8 +178,8 @@ Resources:
       LaunchTemplate: 
         LaunchTemplateId: !Ref AppLaunchTemplate
         Version: !GetAtt AppLaunchTemplate.LatestVersionNumber
-      MinSize: "1"
-      MaxSize: "1"
+      MinSize: !Ref ASGMin
+      MaxSize: !Ref ASGMax
       TargetGroupARNs:
         - !Ref TargetGroup
       VPCZoneIdentifier:
